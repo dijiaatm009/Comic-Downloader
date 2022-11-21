@@ -18,7 +18,7 @@ import hashlib
 
 myran = Myran()
 
-
+#aa
 def app():
     excutor = ThreadPoolExecutor(3)
     window_width=win32api.GetSystemMetrics(win32con.SM_CXSCREEN)  # 获得屏幕分辨率X轴
