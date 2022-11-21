@@ -59,7 +59,7 @@ def app():
 
     def app_main(window: sg.Window, *args):
         #执行流程zzz->parse->ppp->pjdown->splitimage->
-        excutor = ThreadPoolExecutor(10)
+        excutor = ThreadPoolExecutor(4)
         img_list_count=0
         def zzz(data):
             def parse(rsp, path_photo, photoid):
@@ -706,7 +706,8 @@ def app():
                           ,expand_x=True,element_justification='c'
                             ,border_width=0,pad=(0,0),visible=False,key='-down_info_frame-')],
 
-                 [sg.Frame('',[[sg.T('最新更新：https://github.com/dijiaatm009/jmcomic',text_color='#000000',font='宋体,8',pad=(0,0))]]
+                 [sg.Frame('',[[sg.T('最新更新：https://github.com/dijiaatm009/jmcomic',
+                                     text_color='#000000',font='宋体 7',pad=(0,0))]]
                           ,expand_x=True,element_justification='c'
                             ,border_width=0,pad=(0,0),key='-version-')]
             ], expand_y=True,border_width=0,pad=((10,0),(0,0)) )]
