@@ -1,17 +1,19 @@
 #coding=utf-8
-import time
+import threading
+
 import PySimpleGUI as sg
 import requests
 from lxml import etree
 from myran import Myran
 import re,io,json
 from PIL import Image
-import execjs
+
 from concurrent.futures import ThreadPoolExecutor
 
 class JmComic:
     def __init__(self,proxy):
         self.proxy=proxy
+        self.getcomic_json_thdid=''
         self.wz_xpath_dict = {
         "jm天堂":{
             "type_url":"",
@@ -138,6 +140,7 @@ class JmComic:
             return rank_dict,type_dict
         except Exception as e:
             print(e.__traceback__.tb_lineno,e)
+
     #获取当前页面所有漫画列表
     def getcomic_ml(self,window: sg.Window,wz_name,url):
         excutor = ThreadPoolExecutor(2)
@@ -208,11 +211,12 @@ class JmComic:
             print(e.__traceback__.tb_lineno,e)
     #获取漫画所有章数
     def getPhoto(self,window: sg.Window,wz_name,book_name,url):
-        excutor = ThreadPoolExecutor(5)
         photo_name=''
         photoid = ''
         phurl=''
         nums = []
+        thread_id=threading.get_ident()
+        print('threading.get_ident():%s'%threading.get_ident())
         if book_name:
             # 过滤特殊符号 避免创建文件夹错误
             book_name = re.sub(r'[\\\/\|\(\)\~\?\.\:\：\-\*\<\>]', '', book_name)
@@ -220,30 +224,33 @@ class JmComic:
         photo_dict = {book_name: {}}
         #封面加载
         def getcoverImg(img_url):
-            for i in range(2):
-                cover_rsp = requests.get(url=img_url, headers=headers, proxies=self.proxy)
-                if cover_rsp.status_code == 200:
-                    dataBytesIO = io.BytesIO(cover_rsp.content)
-                    img = Image.open(dataBytesIO)
-                    cover_img = img
-                    if cover_img:
-                        imh_w, img_h = cover_img.size#获取图片长宽
-                        f_wifth, f_height = window['-f_img-'].get_size()#获取框架宽高
-                        new_img_w = int(f_height * imh_w / img_h) #根据边框调整图片大小
-                        cover_img_resize = cover_img.resize((int(new_img_w), int(f_height)))
-                        with io.BytesIO() as bio:#把图片加载到内存再读取
-                            cover_img_resize.save(bio, format="PNG")
-                            del cover_img_resize
-                            cover_base64 = bio.getvalue()
+
+            print('threading.get_ident()getcoverImg:%s'%threading.get_ident())
+            cover_rsp = requests.get(url=img_url, headers=headers, proxies=self.proxy)
+            if cover_rsp.status_code == 200:
+                dataBytesIO = io.BytesIO(cover_rsp.content)
+                img = Image.open(dataBytesIO)
+                cover_img = img
+                if cover_img:
+                    imh_w, img_h = cover_img.size#获取图片长宽
+                    f_wifth, f_height = window['-f_img-'].get_size()#获取框架宽高
+                    new_img_w = int(f_height * imh_w / img_h) #根据边框调整图片大小
+                    cover_img_resize = cover_img.resize((int(new_img_w), int(f_height)))
+                    with io.BytesIO() as bio:#把图片加载到内存再读取
+                        cover_img_resize.save(bio, format="PNG")
+                        del cover_img_resize
+                        cover_base64 = bio.getvalue()
+                    if self.getcomic_json_thdid==thread_id:
                         window['-cover_img-'].update(data=cover_base64)
-                        with io.BytesIO() as bio2:#原图
-                            cover_img.save(bio2, format="PNG")
-                            del cover_img
-                            cover_resize_base64 = bio2.getvalue()
-                else:continue
-            return ''
+                    del cover_img,cover_base64
+
+                    # with io.BytesIO() as bio2:#原图
+                    #     cover_img.save(bio2, format="PNG")
+                    #     del cover_img
+                    #     cover_resize_base64 = bio2.getvalue()
+
         #奇漫屋异步加载数据
-        def getcomic_json():
+        def getcomic_json_qmw():
             print("奇漫屋异步加载数据")
             nonlocal photo_dict
             bookid = re.findall(r'com/(\w+?)/',url)[0]
@@ -261,15 +268,55 @@ class JmComic:
                     photo_name=item_dict['chaptername']
                     phurl='%s/%s/%s.html'%(host,bookid,item_dict['chapterid'])
                     photo_dict[book_name][photo_name] = [photoid,phurl]
+
+        def getcomic_json():
+            nums = rsptree.xpath(self.wz_xpath_dict[wz_name]["photo_all"])
+            if nums:
+                for i in nums:
+                    if wz_name == "jm天堂":
+                        photo_name_list = i.xpath(self.wz_xpath_dict[wz_name]["photo_name"])[0].split()
+                        # print(re.findall(r'[\u4E00-\u9FA5]+.*?', i.xpath("li/text()")[0]))
+                        try:
+                            if re.findall(r'[\u4E00-\u9FA5]', photo_name_list[2]):
+                                photo_name = re.sub(r'\s', '', photo_name_list[0]) + ' ' + photo_name_list[2]
+                            else:
+                                photo_name = re.sub(r'\s', '', photo_name_list[0])
+                        except Exception as e:
+                            photo_name = re.sub(r'\s', '', photo_name_list[0])
+                    else:
+                        photo_name = i.xpath(self.wz_xpath_dict[wz_name]["photo_name"])[0]
+                    photo_name = re.sub(r'[\\\/\|\(\)\~\?\.\:\：\-\*\<\>\-\s]', '', photo_name)
+                    print('photo_name', photo_name)
+                    photoid = ''
+                    phurl = host + i.xpath(self.wz_xpath_dict[wz_name]["photo_url"])[0]
+                    try:
+                        if wz_name == 'jm天堂':
+                            photoid = i.attrib['data-album']
+                    except:
+                        pass
+                    print(book_name, photo_name, photoid, phurl)
+                    photo_dict[book_name][photo_name] = [photoid, phurl]
+
+            else:
+                if wz_name == "jm天堂":
+                    photo_name = "共一話"
+                    # print(photo_name)
+                    # album_photo_cover_xpath =rsptree.xpath("//div[@class='row']/div[@id='album_photo_cover']/div[1]/a/@href")[0]
+                    photoid = re.findall(r'/(\d+)/', url)[0]
+                    phurl = "%s/photo/%s" % (host, photoid)
+                    photo_dict[book_name][photo_name] = [photoid, phurl]
         headers = {
             "User-Agent": Myran().agents()
         }
         try:
+
             host = re.findall(r'(https://.*?)/', url)
             host = host if host else re.findall(r'(http://.*?)/', url)
             host = host[0] if host else ''
             if wz_name == '奇漫屋':
-                excutor.submit(getcomic_json)
+                getcomic_json_qmw_thd=threading.Thread(target=getcomic_json_qmw)
+                getcomic_json_qmw_thd.start()
+                getcomic_json_qmw_thd.join()
             rsp = requests.get(url, headers=headers,proxies=self.proxy)
             if rsp.status_code == 200:
                 rsp_text = rsp.text
@@ -281,48 +328,16 @@ class JmComic:
                 cover_img_url=rsptree.xpath(self.wz_xpath_dict[wz_name]["cover_url"])
                 if cover_img_url!=[]:
                     cover_img_url=cover_img_url[0]
-                    excutor.submit(getcoverImg,cover_img_url)
+                    getcoverImg_thread=threading.Thread(target=getcoverImg,args=(cover_img_url,))
+                    getcoverImg_thread.start()
                 # 获取话数列表
                 print("getphoto", wz_name, book_name, url)
                 if wz_name != '奇漫屋':
-                    nums = rsptree.xpath(self.wz_xpath_dict[wz_name]["photo_all"])
-                    if nums:
-                        for i in nums:
-                            if wz_name=="jm天堂":
-                                photo_name_list = i.xpath(self.wz_xpath_dict[wz_name]["photo_name"])[0].split()
-                                #print(re.findall(r'[\u4E00-\u9FA5]+.*?', i.xpath("li/text()")[0]))
-                                try:
-                                    if re.findall(r'[\u4E00-\u9FA5]', photo_name_list[2]):
-                                        photo_name=re.sub(r'\s','',photo_name_list[0])+' '+photo_name_list[2]
-                                    else:photo_name=re.sub(r'\s','',photo_name_list[0])
-                                except Exception as e:
-                                    photo_name = re.sub(r'\s', '', photo_name_list[0])
-                            else:
-                                photo_name = i.xpath(self.wz_xpath_dict[wz_name]["photo_name"])[0]
-                            photo_name = re.sub(r'[\\\/\|\(\)\~\?\.\:\：\-\*\<\>\-\s]', '',photo_name)
-                            print('photo_name',photo_name)
-                            photoid=''
-                            phurl=host+ i.xpath(self.wz_xpath_dict[wz_name]["photo_url"])[0]
-                            try:
-                                if wz_name=='jm天堂':
-                                    photoid=i.attrib['data-album']
-                            except:
-                                pass
-                            print(book_name,photo_name,photoid,phurl)
-                            photo_dict[book_name][photo_name] = [photoid,phurl]
-
-                    else:
-                        if wz_name=="jm天堂":
-                            photo_name = "共一話"
-                            # print(photo_name)
-                            album_photo_cover_xpath =rsptree.xpath("//div[@class='row']/div[@id='album_photo_cover']/div[1]/a/@href")[0]
-                            photoid = re.findall(r'/(\d+)/', album_photo_cover_xpath)[0]
-                            phurl = "%s/photo/%s"%(host,photoid)
-                            photo_dict[book_name][photo_name] = [photoid,phurl]
-
-                excutor.shutdown(True)
+                    getcomic_json_thd=threading.Thread(target=getcomic_json)
+                    getcomic_json_thd.start()
+                    getcomic_json_thd.join()
                 #print("photo_dict",photo_dict)
-                return photo_dict
+                return photo_dict,thread_id
         except Exception as e:
             print(e.__traceback__.tb_lineno, e)
 
