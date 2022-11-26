@@ -1,5 +1,6 @@
 import js2py
 from jmcomic import JmComic
+from natsort import natsorted
 from pathlib import Path
 import io
 import requests
@@ -658,8 +659,9 @@ def app():
         # fnames = [f for f in flist0 if os.path.isfile(
         #     os.path.join(folder, f)) and f.lower().endswith(img_types)] #转小写 后对比后缀
         iter = Path(folder).iterdir()
-        img_types = (".png", ".jpg", "jpeg", ".tiff", ".bmp")
+        img_types = (".png", ".jpg", ".jpeg", ".tiff", ".bmp")
         fnames=[str(item) for item in iter if str(item).lower().endswith(img_types)]#先转小写 再比对后缀
+        fnames = natsorted(fnames)
         print('fnames',fnames)
         maxfnames = len(fnames)
         if maxfnames>0:
@@ -708,6 +710,7 @@ def app():
         new_folder = Path(folder)/'new'
         if not Path(new_folder).exists(): Path(new_folder).mkdir()
         else:
+            #如果new文件夹存在 则删除里面内容
             old_files = Path(new_folder).iterdir()
             for old_file in old_files:
                 Path(old_file).unlink()
@@ -907,3 +910,4 @@ def app():
 
 if __name__ == '__main__':
     app()
+
