@@ -368,7 +368,7 @@ def app():
                     comictype_tmp = comictype_tmp[0] if comictype_tmp else '*'
                     search_gx_url = host + re.sub(r'photos\?', 'photos/' +comictype_tmp + '?',
                                        wz_dict[wz_name]['search_url']) + search_name + "&" + rank
-                elif wz_name in '樱花漫画，奇漫屋':
+                elif wz_name and wz_name in '樱花漫画，奇漫屋':
                     search_gx_url=host+wz_dict[wz_name]['search_url']+search_name
                 if search_gx_url and search_gx_url != gx_url:
                     window['comicname'].update(values=[])
