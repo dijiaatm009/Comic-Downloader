@@ -120,7 +120,8 @@ def app():
                             img_name = img_list.index(i)
                         else:
                             img_url = i.xpath(img_xpath_dict[wz_name]["img_url"])[0]
-                            img_url = re.sub(r'(https://.*?)/', host + "/", img_url)
+                            if wz_name=='jm天堂':
+                                img_url = re.sub(r'(https://.*?)/', host + "/", img_url)
 
                             img_name = Path(img_url).name.split('.')[0]
                         #print('img_url,img_name', img_url, img_name)

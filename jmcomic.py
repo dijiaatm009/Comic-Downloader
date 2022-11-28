@@ -237,7 +237,8 @@ class JmComic:
         #封面加载
         def getcoverImg(img_url):
             try:
-                img_url=re.sub(r'(https://.*?)/',host+"/", img_url)
+                if wz_name=='jm天堂':
+                    img_url=re.sub(r'(https://.*?)/',host+"/", img_url)
                 #print("host:%s,img_url:%s"%(host,img_url))
                 #print('threading.get_ident()getcoverImg:%s'%threading.get_ident())
                 cover_rsp = requests.get(url=img_url, headers=headers, proxies=self.proxy)
