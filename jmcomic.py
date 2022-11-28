@@ -86,41 +86,53 @@ class JmComic:
 
     # 获取类型和排行
     def getTypes(self,wz_name,url):
+        print("wz_name,url:",wz_name,url)
         headers={
             "User-Agent":Myran().agents()
         }
         def gettype():
             nonlocal type_list,rank_title_list
-            type_rsp = requests.get(url, headers=headers, proxies=self.proxy)
-            type_rsp_text = type_rsp.text
-            if re.findall(r"utf|gbk", type_rsp.encoding, re.I) == []:#把网页源代码编码解码后在xpath查找
-                type_rsp_text = type_rsp_text.encode(type_rsp.encoding).decode("gbk")
-            if type_rsp.status_code == 200:
-                type_rsptree = etree.HTML(type_rsp_text)
-                #获取类别
-                type_list = type_rsptree.xpath(self.wz_xpath_dict[wz_name]["type_all"])
-                if wz_name == "jm天堂":
-                    rank_title_list = type_rsptree.xpath(self.wz_xpath_dict[wz_name]["rank_all"])
+            try:
+                type_rsp = requests.get(url, headers=headers, proxies=self.proxy)
+                type_rsp_text = type_rsp.text
+                if re.findall(r"utf|gbk", type_rsp.encoding, re.I) == []:#把网页源代码编码解码后在xpath查找
+                    type_rsp_text = type_rsp_text.encode(type_rsp.encoding).decode("gbk")
+                if type_rsp.status_code == 200:
+                    type_rsptree = etree.HTML(type_rsp_text)
+                    #获取类别
+                    type_list = type_rsptree.xpath(self.wz_xpath_dict[wz_name]["type_all"])
+                    print("xpath获取type:%s个"%len(type_list))
+                    if wz_name == "jm天堂":
+                        rank_title_list = type_rsptree.xpath(self.wz_xpath_dict[wz_name]["rank_all"])
+            except Exception as e:
+                print(e.__traceback__.tb_lineno,e)
+
         def getrank():
             nonlocal rank_title_list
-            rank_url = self.wz_xpath_dict[wz_name]['rank_url']
-            if rank_url:
-                rank_rsp = requests.get(self.wz_xpath_dict[wz_name]["rank_url"], headers=headers, proxies=self.proxy)
-                rank_rsp_text = rank_rsp.text
-                if re.findall(r"utf|gbk", rank_rsp.encoding, re.I) == []:
-                    rank_rsp_text = rank_rsp_text.encode(rank_rsp.encoding).decode("gbk")
-                if rank_rsp.status_code == 200:
-                    rank_rsptree = etree.HTML(rank_rsp_text)
-                    rank_title_list = rank_rsptree.xpath(self.wz_xpath_dict[wz_name]["rank_all"])
+            try:
+                rank_url = self.wz_xpath_dict[wz_name]['rank_url']
+                if rank_url:
+                    rank_rsp = requests.get(self.wz_xpath_dict[wz_name]["rank_url"], headers=headers, proxies=self.proxy)
+                    rank_rsp_text = rank_rsp.text
+                    if re.findall(r"utf|gbk", rank_rsp.encoding, re.I) == []:
+                        rank_rsp_text = rank_rsp_text.encode(rank_rsp.encoding).decode("gbk")
+                    if rank_rsp.status_code == 200:
+                        rank_rsptree = etree.HTML(rank_rsp_text)
+                        rank_title_list = rank_rsptree.xpath(self.wz_xpath_dict[wz_name]["rank_all"])
+            except Exception as e:
+                print(e.__traceback__.tb_lineno,e)
+
         try:
             rank_dict = {}
             type_dict={}
             type_list=[]
             rank_title_list=[]
-            excutor = ThreadPoolExecutor(2)
-            excutor.submit(gettype)
-            excutor.submit(getrank)
-            excutor.shutdown(True)#等获取完再往下执行
+            gettype_thd=threading.Thread(target=gettype)
+            getrank_thd=threading.Thread(target=getrank)
+            gettype_thd.start()
+            getrank_thd.start()
+            gettype_thd.join()
+            getrank_thd.join()
             print("rank_title_list",rank_title_list)
             for rank_title_xpath in rank_title_list:
                 rank_title = rank_title_xpath.xpath(self.wz_xpath_dict[wz_name]["rank_title"])
@@ -224,30 +236,34 @@ class JmComic:
         photo_dict = {book_name: {}}
         #封面加载
         def getcoverImg(img_url):
+            try:
+                img_url=re.sub(r'(https://.*?)/',host+"/", img_url)
+                #print("host:%s,img_url:%s"%(host,img_url))
+                #print('threading.get_ident()getcoverImg:%s'%threading.get_ident())
+                cover_rsp = requests.get(url=img_url, headers=headers, proxies=self.proxy)
+                if cover_rsp.status_code == 200:
+                    dataBytesIO = io.BytesIO(cover_rsp.content)
+                    img = Image.open(dataBytesIO)
+                    cover_img = img
+                    if cover_img:
+                        imh_w, img_h = cover_img.size#获取图片长宽
+                        f_wifth, f_height = window['-f_img-'].get_size()#获取框架宽高
+                        new_img_w = int(f_height * imh_w / img_h) #根据边框调整图片大小
+                        cover_img_resize = cover_img.resize((int(new_img_w), int(f_height)))
+                        with io.BytesIO() as bio:#把图片加载到内存再读取
+                            cover_img_resize.save(bio, format="PNG")
+                            del cover_img_resize
+                            cover_base64 = bio.getvalue()
+                        if self.getcomic_json_thdid==thread_id:
+                            window['-cover_img-'].update(data=cover_base64)
+                        del cover_img,cover_base64
 
-            print('threading.get_ident()getcoverImg:%s'%threading.get_ident())
-            cover_rsp = requests.get(url=img_url, headers=headers, proxies=self.proxy)
-            if cover_rsp.status_code == 200:
-                dataBytesIO = io.BytesIO(cover_rsp.content)
-                img = Image.open(dataBytesIO)
-                cover_img = img
-                if cover_img:
-                    imh_w, img_h = cover_img.size#获取图片长宽
-                    f_wifth, f_height = window['-f_img-'].get_size()#获取框架宽高
-                    new_img_w = int(f_height * imh_w / img_h) #根据边框调整图片大小
-                    cover_img_resize = cover_img.resize((int(new_img_w), int(f_height)))
-                    with io.BytesIO() as bio:#把图片加载到内存再读取
-                        cover_img_resize.save(bio, format="PNG")
-                        del cover_img_resize
-                        cover_base64 = bio.getvalue()
-                    if self.getcomic_json_thdid==thread_id:
-                        window['-cover_img-'].update(data=cover_base64)
-                    del cover_img,cover_base64
-
-                    # with io.BytesIO() as bio2:#原图
-                    #     cover_img.save(bio2, format="PNG")
-                    #     del cover_img
-                    #     cover_resize_base64 = bio2.getvalue()
+                        # with io.BytesIO() as bio2:#原图
+                        #     cover_img.save(bio2, format="PNG")
+                        #     del cover_img
+                        #     cover_resize_base64 = bio2.getvalue()
+            except Exception as e:
+                print(e.__traceback__.tb_lineno,e)
 
         #奇漫屋异步加载数据
         def getcomic_json_qmw():
@@ -331,7 +347,7 @@ class JmComic:
                     getcoverImg_thread=threading.Thread(target=getcoverImg,args=(cover_img_url,))
                     getcoverImg_thread.start()
                 # 获取话数列表
-                print("getphoto", wz_name, book_name, url)
+                print("getphoto", wz_name, book_name, url,host)
                 if wz_name != '奇漫屋':
                     getcomic_json_thd=threading.Thread(target=getcomic_json)
                     getcomic_json_thd.start()
@@ -346,12 +362,6 @@ class JmComic:
         pass
 
 
-#
+
 # if __name__ == '__main__':
-#     url='http://www.qiman58.com/12780/1422335.html'
-#     rsp = requests.get(url)
-#     rsp_evel = re.findall(r'\seval\((.*)\)\s',rsp.text)[0]
-#     context1 = execjs.eval(rsp_evel)
-#     newimg_list=re.findall(r'"(.*?)"',context1)
-#     print(len(newimg_list))
-#     print(context1)
+#     pass
