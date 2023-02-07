@@ -6,8 +6,7 @@
 BUG、需求留言：dijiaatm009@outlook.com
 定制qq:958709304
 
-当前最新1.41
 
 
-22-11-29下载链接：
+23-2-2下载链接：
 https://wwrg.lanzouy.com/iqb8S0mbmrng
