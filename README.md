@@ -1,6 +1,6 @@
-# jmcomic下载器
+# 自定义下载器
 
-![4ca4cdee7679f5c4e68a6590c0e96df](https://user-images.githubusercontent.com/118505205/205304238-139b4579-3cd3-4aca-ad3c-b443f935630f.png)
+![image](https://github.com/dijiaatm009/-/assets/118505205/f1403f67-21a4-46ac-8d65-4e96fd3f55a4)
 
 
 BUG、需求留言：dijiaatm009@outlook.com
@@ -9,4 +9,4 @@ BUG、需求留言：dijiaatm009@outlook.com
 
 
 23-2-19下载链接：
-https://wwrg.lanzouy.com/iD55H0o0himh
+
