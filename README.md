@@ -4,8 +4,7 @@
 
 
 BUG、需求留言：dijiaatm009@outlook.com
-定制qq:958709304
+qq:958709304
 
 
-下载链接：
-https://wwrg.lanzouk.com/ilLbp14g8llc
+下载链接：漫画下载器
