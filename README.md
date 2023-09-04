@@ -7,4 +7,4 @@ BUG、需求留言：dijiaatm009@outlook.com
 qq:958709304
 
 
-下载链接：漫画下载器
+下载链接：https://wwrg.lanzouc.com/comicdown
